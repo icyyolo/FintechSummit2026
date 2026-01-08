@@ -80,20 +80,6 @@ def getProfile(email):
     else:
         return format_error_msg("No user found with this email")
 
-@router.post("/uploadSSID")
-async def uploadRequest(request: Request):
-    ssid, error = await read_json(request, ["ssid"])
-    if error:
-        return format_error_msg(error)
-    res = uploadSSID(ssid)
-    return res
-
-# TODO update this to the database
-# Returns True if ssid matches the database / the escrow
-# Else updates False
-def uploadSSID(ssid):
-    return False
-
 # @router.post("/getDates")
 # async def getDatesRequest(request: Request):
 #     email, error = await read_json(request, ["email"])
@@ -118,23 +104,30 @@ def uploadSSID(ssid):
 
         # return format_success_msg()
 
-@router.get("/getRandomProfile")
+@router.post("/getRandomProfile")
 async def getRandomProfileRequest(request: Request):
-    res = getRandomProfile()
+    email, error = await read_json(["email"])
+    if error:
+        return format_error_msg(error)
+    res = getRandomProfile(email)
     return res
 
-def getRandomProfile():
+def getRandomProfile(email):
     client = init_pymongo()
     col = open_collection("users", client)
     
     # Get a random profile
     random_doc = col.aggregate([
-        {'$sample': {'size': 1}}
+        {'$sample': {'size': 2}}
     ])
 
     for doc in random_doc:
+        # If the email is itself -> go next
+        if(doc['email'] == email):
+            continue
         doc['_id'] = str(doc['_id'])
         res = {
+            "email": doc["email"],
             "name": doc["name"],
             "description": doc["description"]
         }
@@ -155,27 +148,55 @@ async def postSendInvitationRequest(request: Request):
     if error:
         return format_error_msg(error)
     res = acceptMatch(emailUser, emailMatch)
+    if (res["success"] == False):
+        return res
     return format_success_msg(res)
 
+# emailUser (A)
+# emailMatch (B)
 def acceptMatch(emailUser, emailMatch):
     userProfile = find_one_collection({"email": emailUser}, "users")
+
+    if userProfile == None:
+        return format_error_msg("Email user does not exists")
+
     pendingMatches = userProfile["pendingMatches"]
+
+    # Case 2: Already in pending matches
     for match in pendingMatches:
         if match == emailMatch:
+            print("case 2")
             pendingMatches.remove(emailMatch)
             update_to_collection({"email": emailUser}, {"pendingMatches": pendingMatches}, "users")
-            addToMatchedPeopleArrayA(emailUser, emailMatch)
-            addToMatchedPeopleArrayA(emailMatch, emailUser)
+
+            matchProfile = find_one_collection({"email": emailMatch}, "users")
+            if matchProfile == None:
+                return format_error_msg("Email match does not exists")
+            aexists = addToMatchedPeopleArrayA(emailUser, emailMatch)
+            bexists = addToMatchedPeopleArrayA(emailMatch, emailUser)
             return {"access": True}
-    pendingMatches.add(emailMatch)
-    update_to_collection({"email": emailUser}, {"pendingMatches": pendingMatches}, "users")
+        
+    # Case 1: Not in pending match -> add to emailMatch
+    print("case 1")
+    matchProfile = find_one_collection({"email": emailMatch}, "users")
+    if matchProfile == None:
+        return format_error_msg("Email match does not exists")
+    
+    print(matchProfile)
+
+    pendingMatchesB = matchProfile["pendingMatches"]
+    pendingMatchesB.append(emailUser)
+    update_to_collection({"email": emailMatch}, {"pendingMatches": pendingMatchesB}, "users")
     return {"access": True}
 
 def addToMatchedPeopleArrayA(emailA, emailB):
     aProfile = find_one_collection({"email": emailA}, "users")
+    if aProfile == None:
+        return False
     matchedPeopleArrayA = aProfile["matches"]
-    matchedPeopleArrayA.add(emailB)
+    matchedPeopleArrayA.append(emailB)
     update_to_collection({"email": emailA}, {"matches": matchedPeopleArrayA}, "users")
+    return True
     
 
 # @router.post("/getPendingMatches")
@@ -194,3 +215,6 @@ def addToMatchedPeopleArrayA(emailA, emailB):
 # login("1", "6")
 # getProfile("2")
 # getDates("1")
+
+# print(acceptMatch("1234@m.com", "123"))
+# print(acceptMatch("123", "1234@m.com"))
