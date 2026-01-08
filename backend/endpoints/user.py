@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from database.database import find_one_collection, add_to_collection, update_to_collection, delete_from_collection, init_pymongo, open_collection
+from database.database import find_one_collection, add_to_collection, update_to_collection, delete_from_collection, init_pymongo, open_collection, close_client
 from misc.misc import read_json, format_error_msg, format_success_msg
 from pymongo import MongoClient
 import hashlib
@@ -43,10 +43,11 @@ def register(email, name, photo, description, dateIDs, matches, password):
                 "name": name,
                 "photo": photo,
                 "description": description,
-                "dateIDs": dateIDs,
-                "matches": matches,
+                "dateIDs": [],
+                "matches": [],
                 "password": password,
                 "pendingMatches": [],
+                "pubkey": "dummy1",
                 }
     
     res = find_one_collection({"email": email}, "users")
@@ -132,7 +133,17 @@ def getRandomProfile():
     ])
 
     for doc in random_doc:
-        return doc
+        doc['_id'] = str(doc['_id'])
+        res = {
+            "name": doc["name"],
+            "description": doc["description"]
+        }
+        close_client(client)
+        print(res)
+        return res
+    
+    close_client(client)
+    return {}
 
 
 
@@ -175,7 +186,7 @@ def addToMatchedPeopleArrayA(emailA, emailB):
 # print("Register 1")
 # register("1", "2", "3", "4", "5", "6", "7")
 # print("Register 123")
-# register("123", "2", "3", "4", "5", "6", "7")
+# register("abc@mail.com", "2", "3", "4", "5", "6", "7")
 # print("Accepting match")
 # acceptMatch("1", "123")
 # acceptMatch("123", "1")
