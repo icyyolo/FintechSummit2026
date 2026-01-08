@@ -75,11 +75,9 @@ def getProfile(email):
     else:
         return format_error_msg("No user found with this email")
 
-<<<<<<< HEAD
 # register("1", "name", "photo", "description", [1,2,3], [1,2,3], "6")
 # login("1", "6")
 # getProfile("2")
-=======
 @router.post("/getDates")
 async def getDates(request: Request):
     email, error = await read_json(request, 
@@ -102,8 +100,7 @@ def getDates(email):
     else:
         return format_error_msg("No restaurant found with this email")
 
-print(register("restaurant@123", "restaurant", "key", "photo", "description", [1,2,3], "6"))
-print(login("restaurant@123", "6"))
-print(getProfile("restaurant@123"))
-print(getDates("restaurant@123"))
->>>>>>> main
+# print(register("restaurant@123", "restaurant", "key", "photo", "description", [1,2,3], "6"))
+# print(login("restaurant@123", "6"))
+# print(getProfile("restaurant@123"))
+# print(getDates("restaurant@123"))
